@@ -30,43 +30,45 @@
     #include <fstream>  /* For file handling*/
     #include "y.tab.h"
     
-
     using namespace std;
+
     extern FILE *yyin;
-    /* Define yyerror function*/
+
     void yyerror(const char *msg) {
         fprintf(stderr, "Error: %s\n", msg);
     }
 
-    /* Symbol table for variables and constants*/
     typedef struct {
         char* name;
         int value;
-        int is_const; /* 1 if constant, 0 if variable*/
+        int is_const;
+        char* expression; /* Expression string for evaluation if needed*/
+        int dependent_count; /* Count of dependent variables*/
+        char* dependencies[10]; /* List of dependencies (names)*/
     } symbol;
 
     symbol symbol_table[100];
     int symbol_count = 0;
 
     symbol* get_symbol(const char* name);
-    void insert_symbol(const char* name, int value, int is_const);
+    void insert_symbol(const char* name, int value, int is_const, char* expression);
     void print_symbol_table();
 
-    /* Output variable*/
     string finalAssignment = "";
+
 #ifdef YYSTYPE
 #undef  YYSTYPE_IS_DECLARED
 #define YYSTYPE_IS_DECLARED 1
 #endif
 #ifndef YYSTYPE_IS_DECLARED
 #define YYSTYPE_IS_DECLARED 1
-#line 36 "yacc.y"
+#line 38 "yacc.y"
 typedef union YYSTYPE {
     int number;
     char* str;
 } YYSTYPE;
 #endif /* !YYSTYPE_IS_DECLARED */
-#line 70 "y.tab.c"
+#line 72 "y.tab.c"
 
 /* compatibility with bison */
 #ifdef YYPARSE_PARAM
@@ -343,7 +345,7 @@ static YYINT  *yylexp = 0;
 
 static YYINT  *yylexemes = 0;
 #endif /* YYBTYACC */
-#line 110 "yacc.y"
+#line 116 "yacc.y"
 
 
 symbol* get_symbol(const char* name) {
@@ -355,10 +357,12 @@ symbol* get_symbol(const char* name) {
     return NULL;
 }
 
-void insert_symbol(const char* name, int value, int is_const) {
+void insert_symbol(const char* name, int value, int is_const, char* expression) {
     symbol_table[symbol_count].name = strdup(name);
     symbol_table[symbol_count].value = value;
     symbol_table[symbol_count].is_const = is_const;
+    symbol_table[symbol_count].expression = expression;
+    symbol_table[symbol_count].dependent_count = 0;
     symbol_count++;
 }
 
@@ -387,7 +391,7 @@ int main(int argc, char *argv[]) {
     cout << finalAssignment;
     return 0;
 }
-#line 391 "y.tab.c"
+#line 395 "y.tab.c"
 
 /* For use in generated program */
 #define yydepth (int)(yystack.s_mark - yystack.s_base)
@@ -1058,88 +1062,92 @@ yyreduce:
     switch (yyn)
     {
 case 4:
-#line 59 "yacc.y"
+#line 61 "yacc.y"
 	{
-        /* Handle assignment*/
         symbol* left = get_symbol(yystack.l_mark[-3].str);
         if (left == NULL) {
-            insert_symbol(yystack.l_mark[-3].str, 0, 0);  /* Variable initialization*/
+            insert_symbol(yystack.l_mark[-3].str, yystack.l_mark[-1].number, 0, NULL);  /* Variable initialization*/
             left = get_symbol(yystack.l_mark[-3].str);
         }
         left->value = yystack.l_mark[-1].number;  /* Propagate the value of the right-hand side to the variable*/
         finalAssignment += "Assigned " + to_string(yystack.l_mark[-1].number) + " to " + string(yystack.l_mark[-3].str) + "\n";
     }
-#line 1073 "y.tab.c"
+#line 1076 "y.tab.c"
 break;
 case 5:
-#line 69 "yacc.y"
+#line 70 "yacc.y"
 	{
-        /* Direct constant assignment*/
         symbol* left = get_symbol(yystack.l_mark[-3].str);
         if (left == NULL) {
-            insert_symbol(yystack.l_mark[-3].str, yystack.l_mark[-1].number, 1);  /* Constant initialization*/
+            insert_symbol(yystack.l_mark[-3].str, yystack.l_mark[-1].number, 1, NULL);  /* Constant initialization*/
             finalAssignment += "Assigned constant " + to_string(yystack.l_mark[-1].number) + " to " + string(yystack.l_mark[-3].str) + "\n";
         }
     }
-#line 1085 "y.tab.c"
+#line 1087 "y.tab.c"
 break;
 case 6:
 #line 80 "yacc.y"
 	{
         yyval.number = yystack.l_mark[0].number;  /* Direct number*/
     }
-#line 1092 "y.tab.c"
+#line 1094 "y.tab.c"
 break;
 case 7:
 #line 83 "yacc.y"
 	{
         symbol* s = get_symbol(yystack.l_mark[0].str);
         if (s != NULL) {
-            yyval.number = s->value;  /* If the identifier is in the table, use its value*/
+            if (s->dependent_count > 1) {
+                yyval.number = 0; /* Multiple dependencies, use the name itself*/
+                finalAssignment += string(yystack.l_mark[0].str);  /* Just use the identifier*/
+            } else {
+                yyval.number = s->value;  /* If only one dependency, use the value*/
+                finalAssignment += to_string(s->value);  /* Print the value*/
+            }
         } else {
             yyval.number = 0;  /* If not found, treat as 0 (this could be handled differently)*/
         }
     }
-#line 1104 "y.tab.c"
+#line 1112 "y.tab.c"
 break;
 case 8:
-#line 91 "yacc.y"
-	{
-        yyval.number = yystack.l_mark[-2].number + yystack.l_mark[0].number;  /* Simple addition*/
-    }
-#line 1111 "y.tab.c"
-break;
-case 9:
-#line 94 "yacc.y"
-	{
-        yyval.number = yystack.l_mark[-2].number - yystack.l_mark[0].number;  /* Simple subtraction*/
-    }
-#line 1118 "y.tab.c"
-break;
-case 10:
 #line 97 "yacc.y"
 	{
-        yyval.number = yystack.l_mark[-2].number * yystack.l_mark[0].number;  /* Simple multiplication*/
+        yyval.number = yystack.l_mark[-2].number + yystack.l_mark[0].number;
     }
-#line 1125 "y.tab.c"
+#line 1119 "y.tab.c"
 break;
-case 11:
+case 9:
 #line 100 "yacc.y"
 	{
+        yyval.number = yystack.l_mark[-2].number - yystack.l_mark[0].number;
+    }
+#line 1126 "y.tab.c"
+break;
+case 10:
+#line 103 "yacc.y"
+	{
+        yyval.number = yystack.l_mark[-2].number * yystack.l_mark[0].number;
+    }
+#line 1133 "y.tab.c"
+break;
+case 11:
+#line 106 "yacc.y"
+	{
         if (yystack.l_mark[0].number != 0) {
-            yyval.number = yystack.l_mark[-2].number / yystack.l_mark[0].number;  /* Simple division (assuming no zero division)*/
+            yyval.number = yystack.l_mark[-2].number / yystack.l_mark[0].number;
         }
     }
-#line 1134 "y.tab.c"
+#line 1142 "y.tab.c"
 break;
 case 12:
-#line 105 "yacc.y"
+#line 111 "yacc.y"
 	{
-        yyval.number = (int)pow(yystack.l_mark[-2].number, yystack.l_mark[0].number);  /* Power operation*/
+        yyval.number = (int)pow(yystack.l_mark[-2].number, yystack.l_mark[0].number);
     }
-#line 1141 "y.tab.c"
+#line 1149 "y.tab.c"
 break;
-#line 1143 "y.tab.c"
+#line 1151 "y.tab.c"
     default:
         break;
     }
