@@ -165,5 +165,6 @@ int main(int argc, char *argv[]) {
 
     // Output the final assignments
     cout << finalAssignment;
+    print_symbol_table();
     return 0;
 }
