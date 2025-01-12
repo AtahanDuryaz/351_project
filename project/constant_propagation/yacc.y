@@ -65,7 +65,11 @@ statement:
             left = get_symbol($1);
         }
         left->value = $3;  // Propagate the value of the right-hand side to the variable
-        finalAssignment += "Assigned " + to_string($3) + " to " + string($1) + "\n";
+        if (left->expression != NULL) {
+            finalAssignment += string($1) + " = " + left->expression + "\n"; // Print the full expression
+        } else {
+            finalAssignment += "Assigned constant " + to_string($3) + " to " + string($1) + "\n";
+        }
     }
     | IDENT EQUALSYM INTEGER SEMICOLON {
         symbol* left = get_symbol($1);
@@ -96,20 +100,25 @@ expression:
     }
     | expression PLUSOP expression {
         $$ = $1 + $3;
+        finalAssignment += "(" + to_string($1) + " + " + to_string($3) + ")"; // Track the operation
     }
     | expression SUBOP expression {
         $$ = $1 - $3;
+        finalAssignment += "(" + to_string($1) + " - " + to_string($3) + ")";
     }
     | expression MULOP expression {
         $$ = $1 * $3;
+        finalAssignment += "(" + to_string($1) + " * " + to_string($3) + ")";
     }
     | expression DIVOP expression {
         if ($3 != 0) {
             $$ = $1 / $3;
+            finalAssignment += "(" + to_string($1) + " / " + to_string($3) + ")";
         }
     }
     | expression POWOP expression {
         $$ = (int)pow($1, $3);
+        finalAssignment += "(" + to_string($1) + " ^ " + to_string($3) + ")";
     }
     ;
 
