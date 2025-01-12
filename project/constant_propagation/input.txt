@@ -1,0 +1,12 @@
+a=2;
+b=3;
+c=a*b;
+d=a;
+e=b;
+f=d+e;
+g=c-f;
+h=g*c;
+i=g*c;
+j=a*b;
+r=d+e;
+s=j+r;
